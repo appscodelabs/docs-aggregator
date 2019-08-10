@@ -12,6 +12,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 )
 
@@ -107,7 +108,7 @@ func processProduct(p Product, rootDir string, sh *shell.Session) error {
 			return err
 		}
 
-		err := filepath.Walk(vDir, func(path string, info os.FileInfo, err error) error {
+		err := filepath.Walk(filepath.Join(prjDir, vDir), func(path string, info os.FileInfo, err error) error {
 			if err != nil {
 				fmt.Printf("prevent panic by handling failure accessing a path %q: %v\n", dir, err)
 				return err
@@ -117,7 +118,6 @@ func processProduct(p Product, rootDir string, sh *shell.Session) error {
 			}
 
 			fmt.Println(path)
-			// os.Exit(1)
 
 			data, err := ioutil.ReadFile(path)
 			if err != nil {
@@ -141,7 +141,7 @@ func processProduct(p Product, rootDir string, sh *shell.Session) error {
 			}
 			if ok {
 				for i := range aliases {
-					if strings.HasPrefix(aliases[i], "/") {
+					if !strings.HasPrefix(aliases[i], "/") {
 						aliases[i] = "/" + aliases[i]
 					}
 				}
@@ -151,21 +151,30 @@ func processProduct(p Product, rootDir string, sh *shell.Session) error {
 				}
 			}
 
-			yamlMetdata, err := yaml.Marshal(metadata)
+			metaYAML, err := yaml.Marshal(metadata)
 			if err != nil {
 				return err
 			}
 
 			content := page.Content()
 
-			out := `---\n` + string(yamlMetdata) + `\n---\n` + string(content)
-			return ioutil.WriteFile(path, []byte(out), 0755)
+			re1 := regexp.MustCompile(`(\(/docs/)`)
+			content = re1.ReplaceAll(content, []byte(`(/products/`+p.Name+`/`+v.Branch+`/`))
+
+			re2 := regexp.MustCompile(`(\(/products/.*)(.md)(#.*)?\)`)
+			content = re2.ReplaceAll(content, []byte(`${1}${3})`))
+
+			re3 := regexp.MustCompile(`/docs/images`)
+			content = re3.ReplaceAll(content, []byte(`/products/`+p.Name+`/`+v.Branch+`/images`))
+
+			out := `---\n` + string(metaYAML) + `\n---\n` + string(content)
+			return ioutil.WriteFile(path, []byte(out), 0644)
 		})
 		if err != nil {
-			fmt.Printf("error walking the path %q: %v\n", dir, err)
+			return err
 		}
 
-		break
+		break // exit
 	}
 	return nil
 }
