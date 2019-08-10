@@ -158,16 +158,27 @@ func processProduct(p Product, rootDir string, sh *shell.Session) error {
 
 			content := page.Content()
 
-			re1 := regexp.MustCompile(`(\(/docs/)`)
-			content = re1.ReplaceAll(content, []byte(`(/products/`+p.Name+`/`+v.Branch+`/`))
+			if strings.Index(string(content), "(/docs") > -1 {
+				re1 := regexp.MustCompile(`(\(/docs/)`)
+				content = re1.ReplaceAll(content, []byte(`(/products/`+p.Name+`/`+v.Branch+`/`))
 
-			re2 := regexp.MustCompile(`(\(/products/.*)(.md)(#.*)?\)`)
-			content = re2.ReplaceAll(content, []byte(`${1}${3})`))
+				re2 := regexp.MustCompile(`(\(/products/.*)(.md)(#.*)?\)`)
+				content = re2.ReplaceAll(content, []byte(`${1}${3})`))
 
-			re3 := regexp.MustCompile(`/docs/images`)
-			content = re3.ReplaceAll(content, []byte(`/products/`+p.Name+`/`+v.Branch+`/images`))
+				//re3 := regexp.MustCompile(`/docs/images`)
+				//content = re3.ReplaceAll(content, []byte(`/products/`+p.Name+`/`+v.Branch+`/images`))
+			}
 
-			out := `---\n` + string(metaYAML) + `\n---\n` + string(content)
+			//re1 := regexp.MustCompile(`(\(/docs/)`)
+			//content = re1.ReplaceAll(content, []byte(`(/products/`+p.Name+`/`+v.Branch+`/`))
+			//
+			//re2 := regexp.MustCompile(`(\(/products/.*)(.md)(#.*)?\)`)
+			//content = re2.ReplaceAll(content, []byte(`${1}${3})`))
+			//
+			//re3 := regexp.MustCompile(`/docs/images`)
+			//content = re3.ReplaceAll(content, []byte(`/products/`+p.Name+`/`+v.Branch+`/images`))
+
+			out := "---\n" + string(metaYAML) + "\n---\n" + string(content)
 			return ioutil.WriteFile(path, []byte(out), 0644)
 		})
 		if err != nil {
