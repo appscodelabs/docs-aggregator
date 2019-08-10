@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"io/ioutil"
 	"log"
+	"os"
 )
 
 func main()  {
@@ -35,7 +36,25 @@ func dostuff() error {
 	return nil
 }
 
+/*
+session := sh.NewSession()
+session.SetEnv("BUILD_ID", "123")
+session.SetDir("/")
+# then call cmd
+session.Command("echo", "hello").Run()
+# set ShowCMD to true for easily debug
+session.ShowCMD = true
+*/
 func processProduct(name string, p Product) error {
+	dir, err := ioutil.TempDir("/home/tamal/Desktop/docs", "aggr")
+	if err != nil {
+		return err
+	}
+	err = os.MkdirAll(dir, 0755)
+	if err != nil {
+		return err
+	}
+
 
 	return nil
 }
