@@ -49,12 +49,12 @@ github.com/dlclark/regexp2
 github.com/dlclark/regexp2/syntax
 # github.com/fsnotify/fsnotify v1.4.7
 github.com/fsnotify/fsnotify
-# github.com/gogo/protobuf v1.2.2-0.20190723190241-65acae22fc9d
+# github.com/gogo/protobuf v0.0.0-20171007142547-342cbe0a0415
 github.com/gogo/protobuf/proto
 github.com/gogo/protobuf/sortkeys
-# github.com/gohugoio/hugo v0.49.1
-github.com/gohugoio/hugo/parser
+# github.com/gohugoio/hugo v0.49.2
 github.com/gohugoio/hugo/helpers
+github.com/gohugoio/hugo/parser
 github.com/gohugoio/hugo/bufferpool
 github.com/gohugoio/hugo/common/hugio
 github.com/gohugoio/hugo/common/maps
@@ -67,7 +67,7 @@ github.com/gohugoio/hugo/hugolib/paths
 github.com/gohugoio/hugo/common/collections
 github.com/gohugoio/hugo/common/math
 github.com/gohugoio/hugo/langs
-# github.com/google/gofuzz v1.0.0
+# github.com/google/gofuzz v0.0.0-20170612174753-24818f796faf
 github.com/google/gofuzz
 # github.com/hashicorp/go-immutable-radix v1.0.0
 github.com/hashicorp/go-immutable-radix
@@ -112,18 +112,18 @@ github.com/spf13/afero/mem
 github.com/spf13/cast
 # github.com/spf13/jwalterweatherman v1.0.0
 github.com/spf13/jwalterweatherman
-# github.com/spf13/pflag v1.0.3
+# github.com/spf13/pflag v1.0.2
 github.com/spf13/pflag
 # github.com/spf13/viper v1.2.0
 github.com/spf13/viper
-# golang.org/x/net v0.0.0-20190613194153-d28f0bde5980
+# golang.org/x/net v0.0.0-20190206173232-65e2d4e15006
 golang.org/x/net/idna
 golang.org/x/net/http2
 golang.org/x/net/http/httpguts
 golang.org/x/net/http2/hpack
-# golang.org/x/sys v0.0.0-20190616124812-15dcb6c0061f
+# golang.org/x/sys v0.0.0-20190312061237-fead79001313
 golang.org/x/sys/unix
-# golang.org/x/text v0.3.2
+# golang.org/x/text v0.3.1-0.20181227161524-e6919f6577db
 golang.org/x/text/transform
 golang.org/x/text/unicode/norm
 golang.org/x/text/width
@@ -131,9 +131,9 @@ golang.org/x/text/secure/bidirule
 golang.org/x/text/unicode/bidi
 # gopkg.in/inf.v0 v0.9.0
 gopkg.in/inf.v0
-# gopkg.in/yaml.v2 v2.2.2
+# gopkg.in/yaml.v2 v2.2.1
 gopkg.in/yaml.v2
-# k8s.io/apimachinery v0.0.0-20190809020650-423f5d784010
+# k8s.io/apimachinery v0.0.0-20190612205821-1799e75a0719
 k8s.io/apimachinery/pkg/apis/meta/v1/unstructured
 k8s.io/apimachinery/pkg/apis/meta/v1
 k8s.io/apimachinery/pkg/runtime

@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"github.com/gohugoio/hugo/helpers"
+	"github.com/spf13/cast"
 	"io/ioutil"
 	"log"
 	"os"
@@ -131,32 +133,6 @@ func processProduct(p Product, rootDir string, sh *shell.Session) error {
 				return err
 			}
 
-			metadata, err := page.Metadata()
-			if err != nil {
-				return err
-			}
-
-			aliases, ok, err := unstructured.NestedStringSlice(metadata, "aliases")
-			if err != nil {
-				return err
-			}
-			if ok {
-				for i := range aliases {
-					if !strings.HasPrefix(aliases[i], "/") {
-						aliases[i] = "/" + aliases[i]
-					}
-				}
-				err = unstructured.SetNestedStringSlice(metadata, aliases, "aliases")
-				if err != nil {
-					return err
-				}
-			}
-
-			metaYAML, err := yaml.Marshal(metadata)
-			if err != nil {
-				return err
-			}
-
 			content := page.Content()
 
 			if strings.Index(string(content), "/docs") > -1 {
@@ -167,19 +143,127 @@ func processProduct(p Product, rootDir string, sh *shell.Session) error {
 				content = re2.ReplaceAll(content, []byte(`${1}${3})`))
 
 				content = bytes.ReplaceAll(content, []byte(`"/docs/images`), []byte(`"/products/`+p.Name+`/`+v.Branch+`/images`))
-
-				//re3 := regexp.MustCompile(`"/docs/images`)
-				//content = re3.ReplaceAll(content, []byte(`"/products/`+p.Name+`/`+v.Branch+`/images`))
 			}
 
-			out := "---\n" + string(metaYAML) + "---\n\n" + string(content)
+			out := "---\n"
+			frontmatter := page.FrontMatter()
+
+			if len(frontmatter) != 0 && rune(frontmatter[0]) == '-' {
+				var m2 yaml.MapSlice
+				err = yaml.Unmarshal(frontmatter, &m2)
+				if err != nil {
+					return err
+				}
+				for i := range m2 {
+					if sk, ok := m2[i].Key.(string); ok && sk == "aliases" {
+
+						v2, ok := m2[i].Value.([]interface{})
+						if !ok {
+							continue
+						}
+						strSlice := make([]string, 0, len(v2))
+						for _, v := range v2 {
+							if str, ok := v.(string); ok {
+								// make aliases abs path
+								if !strings.HasPrefix(str, "/") {
+									str = "/" + str
+								}
+
+								strSlice = append(strSlice, str)
+							} else {
+								continue
+							}
+						}
+						m2[i].Value = strSlice
+					} else if vv, changed := stringifyMapKeys(m2[i].Value); changed {
+						m2[i].Value = vv
+					}
+				}
+
+				d2, err := yaml.Marshal(m2)
+				if err != nil {
+					return err
+				}
+				out += string(d2)
+
+			} else {
+				metadata, err := page.Metadata()
+				if err != nil {
+					return err
+				}
+
+				aliases, ok, err := unstructured.NestedStringSlice(metadata, "aliases")
+				if err != nil {
+					return err
+				}
+				if ok {
+					for i := range aliases {
+						if !strings.HasPrefix(aliases[i], "/") {
+							aliases[i] = "/" + aliases[i]
+						}
+					}
+					err = unstructured.SetNestedStringSlice(metadata, aliases, "aliases")
+					if err != nil {
+						return err
+					}
+				}
+
+				metaYAML, err := yaml.Marshal(metadata)
+				if err != nil {
+					return err
+				}
+				out += string(metaYAML)
+			}
+
+			out = out + "---\n\n" + string(content)
 			return ioutil.WriteFile(path, []byte(out), 0644)
 		})
 		if err != nil {
 			return err
 		}
-
-		break // exit
 	}
 	return nil
+}
+
+// stringifyMapKeys recurses into in and changes all instances of
+// map[interface{}]interface{} to map[string]interface{}. This is useful to
+// work around the impedence mismatch between JSON and YAML unmarshaling that's
+// described here: https://github.com/go-yaml/yaml/issues/139
+//
+// Inspired by https://github.com/stripe/stripe-mock, MIT licensed
+func stringifyMapKeys(in interface{}) (interface{}, bool) {
+	switch in := in.(type) {
+	case []interface{}:
+		for i, v := range in {
+			if vv, replaced := stringifyMapKeys(v); replaced {
+				in[i] = vv
+			}
+		}
+	case map[interface{}]interface{}:
+		res := make(map[string]interface{})
+		var (
+			ok  bool
+			err error
+		)
+		for k, v := range in {
+			var ks string
+
+			if ks, ok = k.(string); !ok {
+				ks, err = cast.ToStringE(k)
+				if err != nil {
+					ks = fmt.Sprintf("%v", k)
+				}
+				// TODO(bep) added in Hugo 0.37, remove some time in the future.
+				helpers.DistinctFeedbackLog.Printf("WARNING: YAML data/frontmatter with keys of type %T is since Hugo 0.37 converted to strings", k)
+			}
+			if vv, replaced := stringifyMapKeys(v); replaced {
+				res[ks] = vv
+			} else {
+				res[ks] = v
+			}
+		}
+		return res, true
+	}
+
+	return nil, false
 }
