@@ -4,16 +4,17 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	shell "github.com/codeskyblue/go-sh"
-	"github.com/gohugoio/hugo/parser"
-	"gopkg.in/yaml.v2"
 	"io/ioutil"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"log"
 	"os"
 	"path/filepath"
 	"regexp"
 	"strings"
+
+	shell "github.com/codeskyblue/go-sh"
+	"github.com/gohugoio/hugo/parser"
+	"gopkg.in/yaml.v2"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 )
 
 func main() {
@@ -158,27 +159,20 @@ func processProduct(p Product, rootDir string, sh *shell.Session) error {
 
 			content := page.Content()
 
-			if strings.Index(string(content), "(/docs") > -1 {
+			if strings.Index(string(content), "/docs") > -1 {
 				re1 := regexp.MustCompile(`(\(/docs/)`)
 				content = re1.ReplaceAll(content, []byte(`(/products/`+p.Name+`/`+v.Branch+`/`))
 
 				re2 := regexp.MustCompile(`(\(/products/.*)(.md)(#.*)?\)`)
 				content = re2.ReplaceAll(content, []byte(`${1}${3})`))
 
-				//re3 := regexp.MustCompile(`/docs/images`)
-				//content = re3.ReplaceAll(content, []byte(`/products/`+p.Name+`/`+v.Branch+`/images`))
+				content = bytes.ReplaceAll(content, []byte(`"/docs/images`), []byte(`"/products/`+p.Name+`/`+v.Branch+`/images`))
+
+				//re3 := regexp.MustCompile(`"/docs/images`)
+				//content = re3.ReplaceAll(content, []byte(`"/products/`+p.Name+`/`+v.Branch+`/images`))
 			}
 
-			//re1 := regexp.MustCompile(`(\(/docs/)`)
-			//content = re1.ReplaceAll(content, []byte(`(/products/`+p.Name+`/`+v.Branch+`/`))
-			//
-			//re2 := regexp.MustCompile(`(\(/products/.*)(.md)(#.*)?\)`)
-			//content = re2.ReplaceAll(content, []byte(`${1}${3})`))
-			//
-			//re3 := regexp.MustCompile(`/docs/images`)
-			//content = re3.ReplaceAll(content, []byte(`/products/`+p.Name+`/`+v.Branch+`/images`))
-
-			out := "---\n" + string(metaYAML) + "\n---\n" + string(content)
+			out := "---\n" + string(metaYAML) + "---\n\n" + string(content)
 			return ioutil.WriteFile(path, []byte(out), 0644)
 		})
 		if err != nil {
