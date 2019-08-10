@@ -74,6 +74,8 @@ func process(filename string) error {
 		if err != nil {
 			return err
 		}
+		fmt.Println()
+		fmt.Println("... ... ...")
 	}
 	return nil
 }
@@ -94,17 +96,17 @@ func processProduct(p Product, rootDir string, sh *shell.Session) error {
 	if err != nil {
 		return err
 	}
-	sh.SetDir(repoDir)
 
 	for _, v := range p.Versions {
 		if !v.HostDocs {
 			continue
 		}
-
 		if v.DocsDir == "" {
 			v.DocsDir = "docs"
 		}
 
+		fmt.Println()
+		sh.SetDir(repoDir)
 		err = sh.Command("git", "checkout", v.Branch).Run()
 		if err != nil {
 			return err
@@ -126,6 +128,8 @@ func processProduct(p Product, rootDir string, sh *shell.Session) error {
 			return err
 		}
 
+		fmt.Println(">>> ", vDir)
+
 		err := filepath.Walk(vDir, func(path string, info os.FileInfo, err error) error {
 			if err != nil {
 				fmt.Printf("prevent panic by handling failure accessing a path %q: %v\n", vDir, err)
@@ -134,8 +138,6 @@ func processProduct(p Product, rootDir string, sh *shell.Session) error {
 			if info.IsDir() || !strings.HasSuffix(path, ".md") {
 				return nil // skip
 			}
-
-			fmt.Println(path)
 
 			data, err := ioutil.ReadFile(path)
 			if err != nil {
