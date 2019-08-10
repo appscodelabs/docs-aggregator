@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+	"time"
 
 	shell "github.com/codeskyblue/go-sh"
 	"github.com/gohugoio/hugo/parser"
@@ -76,21 +77,23 @@ func process(filename string) error {
 		}
 		fmt.Println()
 		fmt.Println("... ... ...")
+		time.Sleep(5 * time.Second)
 	}
 	return nil
 }
 
 func processProduct(p Product, rootDir string, sh *shell.Session) error {
-	tmpDir, err := ioutil.TempDir("/home/tamal/Desktop/docs", p.Name)
+	tmpDir, err := ioutil.TempDir("" /*"/home/tamal/Desktop/docs"*/, p.Name)
 	if err != nil {
 		return err
 	}
+	// defer os.RemoveAll(tmpDir)
+
 	repoDir := filepath.Join(tmpDir, "repo")
 	err = os.MkdirAll(repoDir, 0755)
 	if err != nil {
 		return err
 	}
-	// defer os.RemoveAll(tmpDir)
 
 	err = sh.Command("git", "clone", p.GithubURL, repoDir).Run()
 	if err != nil {
@@ -153,86 +156,97 @@ func processProduct(p Product, rootDir string, sh *shell.Session) error {
 			content := page.Content()
 
 			if strings.Index(string(content), "/docs") > -1 {
-				re1 := regexp.MustCompile(`(\(/docs/)`)
-				content = re1.ReplaceAll(content, []byte(`(/products/`+p.Name+`/`+v.Branch+`/`))
+				re1 := regexp.MustCompile(`(\(/docs)`)
+				content = re1.ReplaceAll(content, []byte(`(/products/`+p.Name+`/`+v.Branch))
 
 				re2 := regexp.MustCompile(`(\(/products/.*)(.md)(#.*)?\)`)
-				content = re2.ReplaceAll(content, []byte(`${1}${3})`))
+				for idx := 0; idx < 5; idx++ {
+					content = re2.ReplaceAll(content, []byte(`${1}${3})`))
+				}
 
+				//if strings.Index(string(content), ".md") > -1 {
+				//	fmt.Println(string(content))
+				//	content = re2.ReplaceAll(content, []byte(`${1}${3})`))
+				//}
 				content = bytes.ReplaceAll(content, []byte(`"/docs/images`), []byte(`"/products/`+p.Name+`/`+v.Branch+`/images`))
 			}
 
-			out := "---\n"
+			var out string
 			frontmatter := page.FrontMatter()
 
-			if len(frontmatter) != 0 && rune(frontmatter[0]) == '-' {
-				var m2 yaml.MapSlice
-				err = yaml.Unmarshal(frontmatter, &m2)
-				if err != nil {
-					return err
-				}
-				for i := range m2 {
-					if sk, ok := m2[i].Key.(string); ok && sk == "aliases" {
+			if len(frontmatter) != 0 {
+				out = "---\n"
 
-						v2, ok := m2[i].Value.([]interface{})
-						if !ok {
-							continue
-						}
-						strSlice := make([]string, 0, len(v2))
-						for _, v := range v2 {
-							if str, ok := v.(string); ok {
-								// make aliases abs path
-								if !strings.HasPrefix(str, "/") {
-									str = "/" + str
-								}
-
-								strSlice = append(strSlice, str)
-							} else {
-								continue
-							}
-						}
-						m2[i].Value = strSlice
-					} else if vv, changed := stringifyMapKeys(m2[i].Value); changed {
-						m2[i].Value = vv
-					}
-				}
-
-				d2, err := yaml.Marshal(m2)
-				if err != nil {
-					return err
-				}
-				out += string(d2)
-
-			} else {
-				metadata, err := page.Metadata()
-				if err != nil {
-					return err
-				}
-
-				aliases, ok, err := unstructured.NestedStringSlice(metadata, "aliases")
-				if err != nil {
-					return err
-				}
-				if ok {
-					for i := range aliases {
-						if !strings.HasPrefix(aliases[i], "/") {
-							aliases[i] = "/" + aliases[i]
-						}
-					}
-					err = unstructured.SetNestedStringSlice(metadata, aliases, "aliases")
+				if rune(frontmatter[0]) == '-' {
+					var m2 yaml.MapSlice
+					err = yaml.Unmarshal(frontmatter, &m2)
 					if err != nil {
 						return err
 					}
+					for i := range m2 {
+						if sk, ok := m2[i].Key.(string); ok && sk == "aliases" {
+
+							v2, ok := m2[i].Value.([]interface{})
+							if !ok {
+								continue
+							}
+							strSlice := make([]string, 0, len(v2))
+							for _, v := range v2 {
+								if str, ok := v.(string); ok {
+									// make aliases abs path
+									if !strings.HasPrefix(str, "/") {
+										str = "/" + str
+									}
+
+									strSlice = append(strSlice, str)
+								} else {
+									continue
+								}
+							}
+							m2[i].Value = strSlice
+						} else if vv, changed := stringifyMapKeys(m2[i].Value); changed {
+							m2[i].Value = vv
+						}
+					}
+
+					d2, err := yaml.Marshal(m2)
+					if err != nil {
+						return err
+					}
+					out += string(d2)
+				} else {
+					metadata, err := page.Metadata()
+					if err != nil {
+						return err
+					}
+
+					aliases, ok, err := unstructured.NestedStringSlice(metadata, "aliases")
+					if err != nil {
+						return err
+					}
+					if ok {
+						for i := range aliases {
+							if !strings.HasPrefix(aliases[i], "/") {
+								aliases[i] = "/" + aliases[i]
+							}
+						}
+						err = unstructured.SetNestedStringSlice(metadata, aliases, "aliases")
+						if err != nil {
+							return err
+						}
+					}
+
+					metaYAML, err := yaml.Marshal(metadata)
+					if err != nil {
+						return err
+					}
+					out += string(metaYAML)
 				}
 
-				metaYAML, err := yaml.Marshal(metadata)
-				if err != nil {
-					return err
-				}
-				out += string(metaYAML)
+				out = out + "---\n\n"
 			}
 
-			out = out + "---\n\n" + string(content)
+			out = out + string(content)
 			return ioutil.WriteFile(path, []byte(out), 0644)
 		})
 		if err != nil {
