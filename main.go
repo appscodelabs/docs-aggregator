@@ -20,18 +20,43 @@ import (
 )
 
 func main() {
-	if err := dostuff(); err != nil {
+	if len(os.Args) != 2 {
+		fmt.Fprintln(os.Stderr, "correct usage: docs-aggregator product_listing_file")
+		os.Exit(1)
+	}
+
+	filename := os.Args[1]
+	var err error
+	if !filepath.IsAbs(filename) {
+		filename, err = filepath.Abs(filename)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(1)
+		}
+	}
+	fmt.Println("using product_listing_file=", filename)
+
+	info, err := os.Stat(filename)
+	if os.IsNotExist(err) {
+		fmt.Fprintf(os.Stderr, "product_listing file not found")
+		os.Exit(1)
+	}
+	if info.IsDir() {
+		fmt.Fprintf(os.Stderr, "product_listing file is actually a dir")
+		os.Exit(1)
+	}
+
+	if err := process(filename); err != nil {
 		log.Fatalln(err)
 	}
 }
 
-const dir = "/home/tamal/Desktop/docs"
-
-func dostuff() error {
-	data, err := ioutil.ReadFile("/home/tamal/Desktop/products.json")
+func process(filename string) error {
+	data, err := ioutil.ReadFile(filename)
 	if err != nil {
 		return err
 	}
+	rootDir := filepath.Dir(filename)
 
 	var cfg DocAggregator
 	err = json.Unmarshal(data, &cfg)
@@ -39,54 +64,37 @@ func dostuff() error {
 		return err
 	}
 
-	//dir, err := ioutil.TempDir(dir, "aggr")
-	//if err != nil {
-	//	return err
-	//}
-	err = os.MkdirAll(dir, 0755)
-	if err != nil {
-		return err
-	}
-
 	sh := shell.NewSession()
-	sh.SetDir(dir)
+	sh.SetDir(rootDir)
 	sh.ShowCMD = true
 
 	for name, p := range cfg.Products {
 		p.Name = name
-		err = processProduct(p, dir, sh)
+		err = processProduct(p, rootDir, sh)
 		if err != nil {
 			return err
 		}
-		break // skip
 	}
-
 	return nil
 }
 
 func processProduct(p Product, rootDir string, sh *shell.Session) error {
-	prjDir := filepath.Join(rootDir, p.Name)
-	err := os.MkdirAll(prjDir, 0755)
+	tmpDir, err := ioutil.TempDir("/home/tamal/Desktop/docs", p.Name)
 	if err != nil {
 		return err
 	}
-
-	repoDir := filepath.Join(prjDir, "repo")
+	repoDir := filepath.Join(tmpDir, "repo")
 	err = os.MkdirAll(repoDir, 0755)
 	if err != nil {
 		return err
 	}
-
-	docsDir := filepath.Join(prjDir, "docs")
-	err = os.MkdirAll(docsDir, 0755)
-	if err != nil {
-		return err
-	}
+	// defer os.RemoveAll(tmpDir)
 
 	err = sh.Command("git", "clone", p.GithubURL, repoDir).Run()
 	if err != nil {
 		return err
 	}
+	sh.SetDir(repoDir)
 
 	for _, v := range p.Versions {
 		if !v.HostDocs {
@@ -97,23 +105,30 @@ func processProduct(p Product, rootDir string, sh *shell.Session) error {
 			v.DocsDir = "docs"
 		}
 
-		sh.SetDir(repoDir)
 		err = sh.Command("git", "checkout", v.Branch).Run()
 		if err != nil {
 			return err
 		}
 
-		vDir := filepath.Join("docs", v.Branch)
+		vDir := filepath.Join(rootDir, "content", "products", p.Name, v.Branch)
+		err = os.RemoveAll(vDir)
+		if err != nil {
+			return err
+		}
+		err = os.MkdirAll(filepath.Dir(vDir), 0755) // create parent dir
+		if err != nil {
+			return err
+		}
 
-		sh.SetDir(prjDir)
+		sh.SetDir(tmpDir)
 		err = sh.Command("cp", "-r", filepath.Join("repo", v.DocsDir), vDir).Run()
 		if err != nil {
 			return err
 		}
 
-		err := filepath.Walk(filepath.Join(prjDir, vDir), func(path string, info os.FileInfo, err error) error {
+		err := filepath.Walk(vDir, func(path string, info os.FileInfo, err error) error {
 			if err != nil {
-				fmt.Printf("prevent panic by handling failure accessing a path %q: %v\n", dir, err)
+				fmt.Printf("prevent panic by handling failure accessing a path %q: %v\n", vDir, err)
 				return err
 			}
 			if info.IsDir() || !strings.HasSuffix(path, ".md") {
